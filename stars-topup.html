@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>شحن النجوم</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --card: #171b22;
+    --card-border: #262b34;
+    --text: #f2f4f7;
+    --muted: #8a92a3;
+    --accent: #f5a623;
+    --accent-dim: rgba(245, 166, 35, 0.14);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f4f5f7;
+      --card: #ffffff;
+      --card-border: #e6e8ec;
+      --text: #14171c;
+      --muted: #6b7280;
+      --accent: #c97a12;
+      --accent-dim: rgba(201, 122, 18, 0.12);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1116; --card: #171b22; --card-border: #262b34;
+    --text: #f2f4f7; --muted: #8a92a3; --accent: #f5a623; --accent-dim: rgba(245, 166, 35, 0.14);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, Arial, sans-serif;
+  }
+  body {
+    padding-top: calc(var(--safe-top) + 18px);
+    padding-bottom: calc(var(--safe-bottom) + 24px);
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  .wrap { max-width: 420px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 22px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--accent-dim); color: var(--accent);
+    border-radius: 999px; padding: 5px 14px; font-size: 12px; font-weight: 600;
+    margin-bottom: 12px;
+  }
+  h1 { font-size: 21px; margin: 0 0 4px; font-weight: 700; }
+  .sub { color: var(--muted); font-size: 13.5px; margin: 0; }
+
+  .balance-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 16px 18px;
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 22px;
+  }
+  .balance-card .label { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+  .balance-card .value { font-size: 18px; font-weight: 700; }
+  .balance-card .uid { font-size: 12px; color: var(--muted); direction: ltr; text-align: left; }
+
+  .section-title { font-size: 13px; color: var(--muted); margin: 0 0 10px 2px; font-weight: 600; }
+
+  .tiers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 22px; }
+  .tier {
+    background: var(--card); border: 1.5px solid var(--card-border);
+    border-radius: 14px; padding: 16px 12px; text-align: center;
+    cursor: pointer; transition: border-color .15s ease, transform .1s ease;
+    -webkit-tap-highlight-color: transparent; user-select: none;
+  }
+  .tier:active { transform: scale(0.97); }
+  .tier.selected { border-color: var(--accent); background: var(--accent-dim); }
+  .tier .stars { font-size: 20px; font-weight: 800; }
+  .tier .stars::before { content: "⭐"; margin-inline-end: 4px; font-size: 16px; }
+  .tier .points { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+
+  .custom-note { text-align: center; font-size: 12px; color: var(--muted); margin: -10px 0 22px; }
+
+  .confirm-btn {
+    display: block; width: 100%; border: none; border-radius: 14px;
+    background: var(--accent); color: #1a1204; font-weight: 800; font-size: 16px;
+    padding: 15px 0; cursor: pointer; transition: opacity .15s ease;
+  }
+  .confirm-btn:disabled { opacity: .45; cursor: default; }
+
+  .foot { text-align: center; margin-top: 16px; font-size: 11.5px; color: var(--muted); line-height: 1.6; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <span class="badge">⚡ شحن فوري عبر تيليجرام</span>
+      <h1 id="botTitle">شحن النجوم</h1>
+      <p class="sub">اختر عدد النجوم لشحن رصيدك مباشرة</p>
+    </header>
+
+    <div class="balance-card">
+      <div>
+        <div class="label">سعر النجمة الواحدة</div>
+        <div class="value" id="rateLine">—</div>
+      </div>
+      <div>
+        <div class="label">حسابك</div>
+        <div class="uid" id="uidLine">—</div>
+      </div>
+    </div>
+
+    <div class="section-title">اختر باقة</div>
+    <div class="tiers" id="tiers"></div>
+    <p class="custom-note" id="emptyNote" hidden>لا توجد باقات متاحة حالياً، حاول لاحقاً.</p>
+
+    <button class="confirm-btn" id="confirmBtn" disabled>اختر باقة أولاً</button>
+
+    <p class="foot">سيتم فتح بوت تيليجرام لإتمام الدفع بأمان عبر Telegram Stars الرسمية.</p>
+  </div>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) { tg.ready(); tg.expand(); }
+
+  function qp(name, fallback) {
+    var v = new URLSearchParams(window.location.search).get(name);
+    return v === null ? fallback : v;
+  }
+
+  var botUsername = qp('bot', '');
+  var rate = parseFloat(qp('rate', '0.0094'));
+  var amountsRaw = qp('amounts', '50,70,90,100');
+  var uid = qp('uid', '');
+  var botLabel = qp('label', 'شحن النجوم');
+
+  document.getElementById('botTitle').textContent = botLabel;
+  document.getElementById('rateLine').textContent = rate.toFixed(4) + '$';
+  document.getElementById('uidLine').textContent = uid ? ('#' + uid) : '—';
+
+  var amounts = amountsRaw.split(',').map(function (s) { return parseInt(s.trim(), 10); })
+    .filter(function (n) { return !isNaN(n) && n > 0; });
+
+  var tiersEl = document.getElementById('tiers');
+  var confirmBtn = document.getElementById('confirmBtn');
+  var selected = null;
+
+  if (!amounts.length) {
+    document.getElementById('emptyNote').hidden = false;
+  }
+
+  amounts.forEach(function (amt) {
+    var card = document.createElement('div');
+    card.className = 'tier';
+    card.innerHTML = '<div class="stars">' + amt + '</div>' +
+      '<div class="points">' + (amt * rate).toFixed(2) + '$ نقطة</div>';
+    card.addEventListener('click', function () {
+      document.querySelectorAll('.tier.selected').forEach(function (el) { el.classList.remove('selected'); });
+      card.classList.add('selected');
+      selected = amt;
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = 'تأكيد شحن ' + amt + ' نجمة';
+    });
+    tiersEl.appendChild(card);
+  });
+
+  confirmBtn.addEventListener('click', function () {
+    if (!selected || !botUsername) return;
+    var deepLink = 'https://t.me/' + botUsername + '?start=stars_' + selected;
+    if (tg && tg.openTelegramLink) {
+      tg.openTelegramLink(deepLink);
+    } else {
+      window.location.href = 'tg://resolve?domain=' + botUsername + '&start=stars_' + selected;
+    }
+    if (tg && tg.close) setTimeout(function () { tg.close(); }, 300);
+  });
+</script>
+</body>
+</html>

@@ -354,7 +354,7 @@
       var ctl = new AbortController(), t = setTimeout(function () { ctl.abort(); }, timeout);
       return fetch(cfg.api + path, {
         method: 'POST', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, // طلب بسيط بدون فحص CORS مسبق (أثبت على WebView تيليجرام والأنفاق)
         body: payload, signal: ctl.signal
       }).then(function (r) {
         return r.text().then(function (txt) {
@@ -374,7 +374,8 @@
   var lastErr = '';
   function errText(e) {
     var k = e && e.kind;
-    return 'السيرفر لا يستجيب (' + (k === 'timeout' ? 'انتهت المهلة' : k === 'badjson' ? 'النفق غير متصل' : 'شبكة/حظر') + ')';
+    var host = ''; try { host = new URL(cfg.api).host; } catch (x) {}
+    return 'السيرفر لا يستجيب (' + (k === 'timeout' ? 'انتهت المهلة' : k === 'badjson' ? 'النفق غير متصل' : 'شبكة/حظر') + ')' + (host ? ' [' + host + ']' : '');
   }
   function loadMe() {
     if (!cfg.api) { lastErr = 'لا يوجد رابط سيرفر'; return Promise.resolve(false); }

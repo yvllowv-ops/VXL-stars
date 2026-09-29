@@ -371,27 +371,17 @@
   }
   function closeSheet() { $('veil').hidden = true; }
 
-  // احتياطي: لو تعذر الاتصال بسيرفر الدفع نفتح البوت برابط ?start=stars_N فيرسل الفاتورة داخل المحادثة
-  function viaBot(stars) {
-    try {
-      if (tg && tg.openTelegramLink && cfg.bot) {
-        tg.openTelegramLink('https://t.me/' + cfg.bot + '?start=stars_' + stars);
-        return true;
-      }
-    } catch (e) {}
-    return false;
-  }
   function pay(stars) {
     if (busy) return; busy = true; $('cOk').disabled = true; $('cOk').textContent = 'جاري التجهيز...';
     var resetBtn = function () { busy = false; $('cOk').textContent = 'تأكيد ودفع'; $('cOk').disabled = false; };
     var fail = function (msg) { resetBtn(); toast(msg); hap('error'); };
+    if (!tg || !tg.openInvoice) { fail('حدّث تيليجرام لأحدث إصدار لتظهر نافذة الدفع'); return; }
+    if (!cfg.api) { fail('خدمة الدفع غير جاهزة، أغلق الصفحة وافتحها من البوت بعد ثوانٍ'); return; }
     (cfg.live ? Promise.resolve(true) : loadMe()).then(function (ok) {
-      if (!ok || !tg || !tg.openInvoice) {
-        if (viaBot(stars)) { resetBtn(); closeSheet(); return; }
-        fail('خدمة الدفع غير متاحة حالياً، حاول بعد لحظات'); return;
-      }
+      if (!ok) { fail('تعذر الاتصال بخدمة الدفع، أعد فتح الصفحة من البوت'); return; }
       return api('/api/stars/invoice', { stars: stars }).then(function (j) {
         if (!j || !j.ok || !j.link) { fail((j && j.error) || 'تعذر إنشاء عملية الدفع'); return; }
+        // تفتح نافذة "تأكيد الشراء" الرسمية مباشرة فوق الصفحة، بدون إرسال أي رسالة في البوت
         tg.openInvoice(j.link, function (status) {
           resetBtn();
           if (status === 'paid') { closeSheet(); success(); }
@@ -400,7 +390,6 @@
         });
       }, function () {
         cfg.live = false;
-        if (viaBot(stars)) { resetBtn(); closeSheet(); return; }
         fail('تعذر الاتصال بخدمة الدفع، حاول مرة أخرى');
       });
     });

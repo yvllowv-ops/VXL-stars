@@ -350,16 +350,18 @@
       .then(function (r) { return r.json(); })
       .then(function (j) { clearTimeout(t); return j; }, function (e) { clearTimeout(t); throw e; });
   }
+  var lastErr = '';
   function loadMe() {
-    if (!cfg.api || !initData) return Promise.resolve(false);
+    if (!cfg.api) { lastErr = 'لا يوجد رابط سيرفر'; return Promise.resolve(false); }
+    if (!initData) { lastErr = 'لم تُفتح من زر البوت'; return Promise.resolve(false); }
     return api('/api/stars/me').then(function (j) {
-      if (!j || !j.ok) return false;
+      if (!j || !j.ok) { lastErr = (j && j.error) || 'رد غير صالح'; return false; }
       cfg.balance = j.balance; cfg.uid = String(j.uid || cfg.uid);
       if (j.rate) cfg.rate = +j.rate;
       if (j.amounts) cfg.amounts = j.amounts;
       if (j.ui) Object.assign(cfg.ui, j.ui);
-      cfg.live = true; return true;
-    }).catch(function () { return false; });
+      cfg.live = true; lastErr = ''; return true;
+    }).catch(function (e) { lastErr = 'السيرفر لا يستجيب (' + (e && e.name === 'AbortError' ? 'انتهت المهلة' : 'شبكة/حظر') + ')'; return false; });
   }
 
   // ---------- التأكيد والدفع ----------
@@ -378,7 +380,7 @@
     if (!tg || !tg.openInvoice) { fail('حدّث تيليجرام لأحدث إصدار لتظهر نافذة الدفع'); return; }
     if (!cfg.api) { fail('خدمة الدفع غير جاهزة، أغلق الصفحة وافتحها من البوت بعد ثوانٍ'); return; }
     (cfg.live ? Promise.resolve(true) : loadMe()).then(function (ok) {
-      if (!ok) { fail('تعذر الاتصال بخدمة الدفع، أعد فتح الصفحة من البوت'); return; }
+      if (!ok) { fail('تعذر الاتصال بخدمة الدفع: ' + lastErr); return; }
       return api('/api/stars/invoice', { stars: stars }).then(function (j) {
         if (!j || !j.ok || !j.link) { fail((j && j.error) || 'تعذر إنشاء عملية الدفع'); return; }
         // تفتح نافذة "تأكيد الشراء" الرسمية مباشرة فوق الصفحة، بدون إرسال أي رسالة في البوت

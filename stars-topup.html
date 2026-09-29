@@ -365,34 +365,45 @@
   // ---------- التأكيد والدفع ----------
   function openSheet(r) {
     $('cStars').textContent = r.stars; $('cPts').textContent = fmtPts(r.points);
-    $('cNote').textContent = cfg.live ? 'ستظهر نافذة الدفع الرسمية من تيليجرام لإتمام العملية.' : 'سيتم فتح البوت لإتمام الدفع بأمان.';
+    $('cNote').textContent = 'ستظهر نافذة الدفع الرسمية من تيليجرام داخل هذه الصفحة لإتمام العملية.';
     $('veil').hidden = false; $('cOk').disabled = false;
     $('cOk').dataset.stars = r.stars;
   }
   function closeSheet() { $('veil').hidden = true; }
 
+  // احتياطي: لو تعذر الاتصال بسيرفر الدفع نفتح البوت برابط ?start=stars_N فيرسل الفاتورة داخل المحادثة
+  function viaBot(stars) {
+    try {
+      if (tg && tg.openTelegramLink && cfg.bot) {
+        tg.openTelegramLink('https://t.me/' + cfg.bot + '?start=stars_' + stars);
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
   function pay(stars) {
     if (busy) return; busy = true; $('cOk').disabled = true; $('cOk').textContent = 'جاري التجهيز...';
     var resetBtn = function () { busy = false; $('cOk').textContent = 'تأكيد ودفع'; $('cOk').disabled = false; };
-    if (!(cfg.live && tg && tg.openInvoice)) { deepLink(stars); resetBtn(); return; }
-    api('/api/stars/invoice', { stars: stars }).then(function (j) {
-      if (!j || !j.ok || !j.link) { resetBtn(); toast((j && j.error) || 'تعذر إنشاء عملية الدفع'); hap('error'); return; }
-      tg.openInvoice(j.link, function (status) {
-        resetBtn();
-        if (status === 'paid') { closeSheet(); success(); }
-        else if (status === 'failed') { toast('فشلت عملية الدفع، حاول مرة أخرى'); hap('error'); }
-        else if (status === 'cancelled') { /* المستخدم أغلق النافذة */ }
+    var fail = function (msg) { resetBtn(); toast(msg); hap('error'); };
+    (cfg.live ? Promise.resolve(true) : loadMe()).then(function (ok) {
+      if (!ok || !tg || !tg.openInvoice) {
+        if (viaBot(stars)) { resetBtn(); closeSheet(); return; }
+        fail('خدمة الدفع غير متاحة حالياً، حاول بعد لحظات'); return;
+      }
+      return api('/api/stars/invoice', { stars: stars }).then(function (j) {
+        if (!j || !j.ok || !j.link) { fail((j && j.error) || 'تعذر إنشاء عملية الدفع'); return; }
+        tg.openInvoice(j.link, function (status) {
+          resetBtn();
+          if (status === 'paid') { closeSheet(); success(); }
+          else if (status === 'failed') { toast('فشلت عملية الدفع، حاول مرة أخرى'); hap('error'); }
+          /* cancelled: المستخدم أغلق النافذة */
+        });
+      }, function () {
+        cfg.live = false;
+        if (viaBot(stars)) { resetBtn(); closeSheet(); return; }
+        fail('تعذر الاتصال بخدمة الدفع، حاول مرة أخرى');
       });
-    }, function () {
-      resetBtn(); toast('تعذر الاتصال بالبوت، سيتم فتح البوت للدفع');
-      setTimeout(function () { deepLink(stars); }, 900);
     });
-  }
-  function deepLink(stars) {
-    if (!cfg.bot) { toast('رابط البوت غير متوفر'); return; }
-    var link = 'https://t.me/' + cfg.bot + '?start=stars_' + stars;
-    if (tg && tg.openTelegramLink) tg.openTelegramLink(link); else location.href = link;
-    if (tg && tg.close) setTimeout(function () { tg.close(); }, 350);
   }
   function success() {
     hap('success');
@@ -426,7 +437,12 @@
   $('closeBtn').addEventListener('click', function () { if (tg && tg.close) tg.close(); });
 
   applyTheme(); render(); syncSeg();
-  loadMe().then(function (ok) { if (ok) { applyTheme(); render(); } });
+  (function boot(n) {
+    loadMe().then(function (ok) {
+      if (ok) { applyTheme(); render(); }
+      else if (n < 4 && cfg.api && initData) setTimeout(function () { boot(n + 1); }, 2500);
+    });
+  })(0);
 })();
 </script>
 </body>

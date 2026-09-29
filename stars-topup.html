@@ -343,25 +343,50 @@
   }
 
   // ---------- التواصل مع البوت ----------
-  function api(path, body) {
-    var ctl = new AbortController(), t = setTimeout(function () { ctl.abort(); }, 12000);
-    body = Object.assign({ initData: initData }, body || {});
-    return fetch(cfg.api + path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' }, body: JSON.stringify(body), signal: ctl.signal })
-      .then(function (r) { return r.json(); })
-      .then(function (j) { clearTimeout(t); return j; }, function (e) { clearTimeout(t); throw e; });
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  // يعيد المحاولة تلقائياً عند أخطاء الشبكة/المهلة/ردّ النفق غير الصالح (لا يعيد عند ردّ JSON من البوت)
+  function api(path, body, opts) {
+    opts = opts || {};
+    var tries = opts.tries || 3, timeout = opts.timeout || 12000, attempt = 0;
+    var payload = JSON.stringify(Object.assign({ initData: initData }, body || {}));
+    function once() {
+      attempt++;
+      var ctl = new AbortController(), t = setTimeout(function () { ctl.abort(); }, timeout);
+      return fetch(cfg.api + path, {
+        method: 'POST', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+        body: payload, signal: ctl.signal
+      }).then(function (r) {
+        return r.text().then(function (txt) {
+          clearTimeout(t);
+          try { return JSON.parse(txt); }
+          catch (e) { var er = new Error('badjson'); er.kind = 'badjson'; throw er; }
+        });
+      }).catch(function (e) {
+        clearTimeout(t);
+        if (!e.kind) e.kind = (e && e.name === 'AbortError') ? 'timeout' : 'network';
+        if (attempt < tries) return sleep(600 * attempt).then(once);
+        throw e;
+      });
+    }
+    return once();
   }
   var lastErr = '';
+  function errText(e) {
+    var k = e && e.kind;
+    return 'السيرفر لا يستجيب (' + (k === 'timeout' ? 'انتهت المهلة' : k === 'badjson' ? 'النفق غير متصل' : 'شبكة/حظر') + ')';
+  }
   function loadMe() {
     if (!cfg.api) { lastErr = 'لا يوجد رابط سيرفر'; return Promise.resolve(false); }
     if (!initData) { lastErr = 'لم تُفتح من زر البوت'; return Promise.resolve(false); }
-    return api('/api/stars/me').then(function (j) {
+    return api('/api/stars/me', {}, { tries: 3, timeout: 10000 }).then(function (j) {
       if (!j || !j.ok) { lastErr = (j && j.error) || 'رد غير صالح'; return false; }
       cfg.balance = j.balance; cfg.uid = String(j.uid || cfg.uid);
       if (j.rate) cfg.rate = +j.rate;
       if (j.amounts) cfg.amounts = j.amounts;
       if (j.ui) Object.assign(cfg.ui, j.ui);
       cfg.live = true; lastErr = ''; return true;
-    }).catch(function (e) { lastErr = 'السيرفر لا يستجيب (' + (e && e.name === 'AbortError' ? 'انتهت المهلة' : 'شبكة/حظر') + ')'; return false; });
+    }).catch(function (e) { cfg.live = false; lastErr = errText(e); return false; });
   }
 
   // ---------- التأكيد والدفع ----------
@@ -381,18 +406,20 @@
     if (!cfg.api) { fail('خدمة الدفع غير جاهزة، أغلق الصفحة وافتحها من البوت بعد ثوانٍ'); return; }
     (cfg.live ? Promise.resolve(true) : loadMe()).then(function (ok) {
       if (!ok) { fail('تعذر الاتصال بخدمة الدفع: ' + lastErr); return; }
-      return api('/api/stars/invoice', { stars: stars }).then(function (j) {
+      return api('/api/stars/invoice', { stars: stars }, { tries: 3, timeout: 15000 }).then(function (j) {
         if (!j || !j.ok || !j.link) { fail((j && j.error) || 'تعذر إنشاء عملية الدفع'); return; }
         // تفتح نافذة "تأكيد الشراء" الرسمية مباشرة فوق الصفحة، بدون إرسال أي رسالة في البوت
-        tg.openInvoice(j.link, function (status) {
-          resetBtn();
-          if (status === 'paid') { closeSheet(); success(); }
-          else if (status === 'failed') { toast('فشلت عملية الدفع، حاول مرة أخرى'); hap('error'); }
-          /* cancelled: المستخدم أغلق النافذة */
-        });
-      }, function () {
+        try {
+          tg.openInvoice(j.link, function (status) {
+            resetBtn();
+            if (status === 'paid') { closeSheet(); success(); }
+            else if (status === 'failed') { toast('فشلت عملية الدفع، حاول مرة أخرى'); hap('error'); }
+            /* cancelled: المستخدم أغلق النافذة */
+          });
+        } catch (e) { fail('تعذر فتح نافذة الدفع، حاول مرة أخرى'); }
+      }, function (e) {
         cfg.live = false;
-        fail('تعذر الاتصال بخدمة الدفع، حاول مرة أخرى');
+        fail('تعذر الاتصال بخدمة الدفع: ' + errText(e));
       });
     });
   }
@@ -430,10 +457,15 @@
   applyTheme(); render(); syncSeg();
   (function boot(n) {
     loadMe().then(function (ok) {
-      if (ok) { applyTheme(); render(); }
-      else if (n < 4 && cfg.api && initData) setTimeout(function () { boot(n + 1); }, 2500);
+      if (ok) { applyTheme(); render(); return; }
+      if (cfg.api && initData && n < 6) setTimeout(function () { boot(n + 1); }, Math.min(2000 + n * 1500, 8000));
     });
   })(0);
+  // لو رجع المستخدم للصفحة وكان الاتصال منقطعاً، نعيد الاتصال تلقائياً
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden || busy || cfg.live || !cfg.api || !initData) return;
+    loadMe().then(function (ok) { if (ok) { applyTheme(); render(); } });
+  });
 })();
 </script>
 </body>

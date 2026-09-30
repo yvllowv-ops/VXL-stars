@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>شحن النجوم</title>
+<style>
+  :root {
+    --bg: #0b0d12;
+    --bg2: #12151c;
+    --card: #161a23;
+    --line: #262c39;
+    --text: #f4f6fb;
+    --muted: #8b93a7;
+    --accent: #e5383b;
+    --accent-ink: #ffffff;
+    --ok: #2ecc71;
+    --err: #ff6b6b;
+    --star: #ffc53d;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f3f4f8; --bg2: #ffffff; --card: #ffffff; --line: #e3e6ee;
+      --text: #12151c; --muted: #6a7286; --star: #e8a200;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b0d12; --bg2: #12151c; --card: #161a23; --line: #262c39;
+    --text: #f4f6fb; --muted: #8b93a7; --star: #ffc53d;
+  }
+  :root[data-theme="light"] {
+    --bg: #f3f4f8; --bg2: #ffffff; --card: #ffffff; --line: #e3e6ee;
+    --text: #12151c; --muted: #6a7286; --star: #e8a200;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background:
+      radial-gradient(120% 60% at 50% -10%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, "Noto Sans Arabic", Arial, sans-serif;
+    padding: 18px 16px 28px;
+    overflow-x: hidden;
+  }
+  .wrap { max-width: 440px; margin: 0 auto; }
+  .ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+  [hidden] { display: none !important; }
+
+  header { text-align: center; margin: 6px 0 20px; }
+  .badge {
+    display: inline-block; padding: 5px 14px; border-radius: 999px; font-size: 12px; font-weight: 700;
+    color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); margin-bottom: 12px;
+  }
+  h1 { margin: 0 0 6px; font-size: 24px; font-weight: 800; }
+  .sub { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.6; }
+
+  .info { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 18px; }
+  .info.two { grid-template-columns: 1fr 1fr; }
+  .stat {
+    background: var(--card); border: 1px solid var(--line); border-radius: 18px;
+    padding: 14px 16px; text-align: center; min-width: 0;
+  }
+  .stat .k { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .stat .v { font-size: 26px; font-weight: 800; letter-spacing: .5px; overflow-wrap: anywhere; }
+  .stat.bal .v { color: var(--star); }
+  .stat.bal .u { font-size: 12px; color: var(--muted); font-weight: 600; margin-inline-start: 4px; }
+  .stat.uid .v { font-size: 24px; direction: ltr; }
+  .stat.rate .v { font-size: 20px; direction: ltr; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 16px; margin-bottom: 14px; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; padding: 3px; margin-bottom: 12px; }
+  .seg button {
+    border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 700; font-size: 13.5px;
+    padding: 9px 0; border-radius: 9px; cursor: pointer;
+  }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); }
+  .field { position: relative; }
+  .field input {
+    width: 100%; background: var(--bg2); border: 1.5px solid var(--line); color: var(--text);
+    border-radius: 14px; padding: 15px 16px; font: inherit; font-size: 22px; font-weight: 800;
+    text-align: center; direction: ltr; outline: none;
+  }
+  .field input:focus { border-color: var(--accent); }
+  .field input.bad { border-color: var(--err); }
+  .hint { min-height: 38px; margin: 10px 2px 0; text-align: center; font-size: 13.5px; color: var(--muted); line-height: 1.6; }
+  .hint b { color: var(--text); }
+  .hint.err { color: var(--err); }
+
+  .section-title { font-size: 12.5px; color: var(--muted); font-weight: 700; margin: 4px 4px 10px; }
+  .tiers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .tier {
+    background: var(--card); border: 1.5px solid var(--line); border-radius: 16px; padding: 14px 8px;
+    text-align: center; cursor: pointer; user-select: none; transition: transform .1s, border-color .15s;
+  }
+  .tier:active { transform: scale(.97); }
+  .tier.sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
+  .tier .n { font-size: 20px; font-weight: 800; }
+  .tier .n::after { content: " ⭐"; font-size: 15px; }
+  .tier .p { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  .cta {
+    display: block; width: 100%; border: 0; border-radius: 16px; padding: 16px 0; cursor: pointer;
+    background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 16.5px; font-weight: 800;
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .cta:disabled { opacity: .4; box-shadow: none; cursor: default; }
+  .cta.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); box-shadow: none; margin-top: 10px; }
+  .foot { text-align: center; margin-top: 16px; font-size: 11.5px; color: var(--muted); line-height: 1.7; }
+
+  /* confirm sheet */
+  .veil { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: flex-end; justify-content: center; z-index: 20; }
+  .sheet {
+    width: 100%; max-width: 480px; background: var(--card); border: 1px solid var(--line); border-bottom: 0;
+    border-radius: 24px 24px 0 0; padding: 22px 18px calc(22px + var(--safe-bottom));
+    animation: up .22s ease-out;
+  }
+  @keyframes up { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .sheet h2 { margin: 0 0 14px; text-align: center; font-size: 19px; }
+  .row { display: flex; justify-content: space-between; align-items: center; padding: 12px 4px; border-bottom: 1px dashed var(--line); font-size: 15px; }
+  .row:last-of-type { border-bottom: 0; }
+  .row .k { color: var(--muted); }
+  .row .v { font-weight: 800; font-size: 17px; }
+  .sheet .note { text-align: center; color: var(--muted); font-size: 12px; margin: 8px 0 14px; line-height: 1.6; }
+
+  /* success */
+  .done { text-align: center; padding: 30px 6px; }
+  .done .ic {
+    width: 84px; height: 84px; border-radius: 50%; margin: 0 auto 16px; display: grid; place-items: center;
+    background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); font-size: 44px; font-weight: 800;
+  }
+  .done h2 { margin: 0 0 8px; font-size: 22px; }
+  .done p { margin: 0 0 18px; color: var(--muted); font-size: 14px; line-height: 1.7; }
+  .toast {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(24px + var(--safe-bottom));
+    background: var(--card); border: 1px solid var(--err); color: var(--text); padding: 11px 16px; border-radius: 12px;
+    font-size: 13.5px; z-index: 40; max-width: 90%; text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div id="main">
+    <header>
+      <span class="badge" id="badge" hidden></span>
+      <h1 id="title"></h1>
+      <p class="sub" id="subtitle"></p>
+    </header>
+
+    <div class="info" id="info">
+      <div class="stat bal" id="balBox" hidden><div class="k">رصيدك الحالي</div><div class="v"><span class="ltr" id="balVal">0</span><span class="u">نقطة</span></div></div>
+      <div class="stat uid" id="uidBox" hidden><div class="k">الأيدي</div><div class="v" id="uidVal"></div></div>
+      <div class="stat rate" id="rateBox" hidden><div class="k">سعر النجمة الواحدة</div><div class="v" id="rateVal"></div></div>
+    </div>
+
+    <div class="card" id="customCard" hidden>
+      <div class="seg" id="seg">
+        <button type="button" data-mode="points" class="on">بالنقاط</button>
+        <button type="button" data-mode="stars">بالنجوم</button>
+      </div>
+      <div class="field"><input id="amt" type="text" inputmode="decimal" autocomplete="off" placeholder="1.0" aria-label="المبلغ"></div>
+      <div class="hint" id="hint"></div>
+    </div>
+
+    <div id="tiersWrap" hidden>
+      <div class="section-title">باقات سريعة</div>
+      <div class="tiers" id="tiers"></div>
+    </div>
+
+    <button class="cta" id="go" disabled></button>
+    <p class="foot" id="foot" hidden></p>
+  </div>
+
+  <div class="done" id="done" hidden>
+    <div class="ic">✓</div>
+    <h2>تم الدفع بنجاح</h2>
+    <p id="doneMsg">تمت العملية، وستصلك رسالة تأكيد الشحن في البوت.</p>
+    <div class="stat bal" id="doneBal" hidden style="margin-bottom:16px"><div class="k">رصيدك الحالي</div><div class="v"><span class="ltr" id="doneBalVal">0</span><span class="u">نقطة</span></div></div>
+    <button class="cta" id="again">شحن مرة أخرى</button>
+    <button class="cta ghost" id="closeBtn">إغلاق</button>
+  </div>
+</div>
+
+<div class="veil" id="veil" hidden>
+  <div class="sheet" role="dialog" aria-modal="true">
+    <h2>تأكيد الشحن</h2>
+    <div class="row"><span class="k">تدفع</span><span class="v"><span class="ltr" id="cStars">0</span> ⭐</span></div>
+    <div class="row"><span class="k">تحصل على</span><span class="v"><span class="ltr" id="cPts">0</span> نقطة</span></div>
+    <p class="note" id="cNote"></p>
+    <button class="cta" id="cOk">تأكيد ودفع</button>
+    <button class="cta ghost" id="cNo">إلغاء</button>
+  </div>
+</div>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+(function () {
+  'use strict';
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) { try { tg.ready(); tg.expand(); } catch (e) {} }
+  var $ = function (id) { return document.getElementById(id); };
+  var Q = new URLSearchParams(location.search);
+
+  // ---------- الإعدادات (تأتي من البوت، والتحكم بها من لوحة الأدمن) ----------
+  // يوزر البوت الافتراضي (يُستعمل لو لم يمرّره البوت في الرابط)
+  var DEFAULT_BOT = 'vlxtbot';
+  var DEFAULT_UI = {
+    show_balance: 1, show_id: 1, show_rate: 0, show_packages: 1, show_custom: 1, show_badge: 1, show_footer: 1,
+    title: 'شحن النجوم', subtitle: 'اختر عدد النجوم لشحن رصيدك مباشرة', badge: '⚡ شحن فوري عبر تيليجرام',
+    button_text: 'تأكيد الشحن', footer: 'الدفع آمن عبر Telegram Stars الرسمية.',
+    accent: '#e5383b', theme: 'dark', min_stars: 1, max_stars: 2500
+  };
+  var cfg = {
+    ui: Object.assign({}, DEFAULT_UI),
+    rate: parseFloat(Q.get('rate')) || 0.0094,
+    amounts: (Q.get('amounts') || '50,70,90,100').split(',').map(function (s) { return parseInt(s, 10); }).filter(function (n) { return n > 0; }),
+    balance: Q.get('bal'), uid: Q.get('uid') || '', bot: (Q.get('bot') || DEFAULT_BOT).replace(/^@/, ''), api: (Q.get('api') || '').replace(/\/+$/, '')
+  };
+  try { var c = Q.get('c'); if (c) Object.assign(cfg.ui, JSON.parse(c)); } catch (e) {}
+  var initData = tg && tg.initData ? tg.initData : '';
+
+  var mode = 'points';   // points | stars
+  var picked = null;     // باقة مختارة
+  var busy = false;
+
+  // ---------- أدوات ----------
+  function digits(s) {
+    return String(s).replace(/[\u0660-\u0669]/g, function (d) { return d.charCodeAt(0) - 0x660; })
+      .replace(/[\u06F0-\u06F9]/g, function (d) { return d.charCodeAt(0) - 0x6F0; })
+      .replace(/[\u060C,\u066B]/g, '.').replace(/\s+/g, '');
+  }
+  function fmtPts(x) {
+    var s = (Math.round(x * 1e4) / 1e4).toFixed(4).replace(/0+$/, '');
+    if (/\.$/.test(s)) s += '00'; else if (/\.\d$/.test(s)) s += '0';
+    return s;
+  }
+  function starsForPoints(p) { return Math.ceil(+(p / cfg.rate).toFixed(6)); }
+  function ptsForStars(n) { return Math.round(n * cfg.rate * 1e6) / 1e6; }
+  function clampInfo() { return { lo: Math.max(1, +cfg.ui.min_stars || 1), hi: Math.max(1, +cfg.ui.max_stars || 2500) }; }
+  function toast(msg) {
+    var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t);
+    setTimeout(function () { t.remove(); }, 3200);
+  }
+  function hap(kind) { try { tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred(kind); } catch (e) {} }
+
+  // ---------- عرض ----------
+  function applyTheme() {
+    var r = document.documentElement, u = cfg.ui;
+    if (/^#[0-9a-fA-F]{6}$/.test(u.accent)) {
+      r.style.setProperty('--accent', u.accent);
+      var n = parseInt(u.accent.slice(1), 16), lum = 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+      r.style.setProperty('--accent-ink', lum > 165 ? '#111' : '#fff');
+    }
+    var th = u.theme === 'auto' ? (tg && tg.colorScheme) : u.theme;
+    if (th === 'dark' || th === 'light') r.setAttribute('data-theme', th);
+  }
+  function render() {
+    var u = cfg.ui;
+    document.title = u.title || 'شحن النجوم';
+    $('title').textContent = u.title || '';
+    $('subtitle').textContent = u.subtitle || ''; $('subtitle').hidden = !u.subtitle;
+    $('badge').textContent = u.badge || ''; $('badge').hidden = !(+u.show_badge && u.badge);
+    $('balBox').hidden = !+u.show_balance;
+    $('uidBox').hidden = !(+u.show_id && cfg.uid);
+    $('rateBox').hidden = !+u.show_rate;
+    $('uidVal').textContent = cfg.uid;
+    $('rateVal').textContent = cfg.rate.toFixed(4) + '$';
+    $('info').className = 'info' + (((+u.show_balance ? 1 : 0) + (+u.show_id && cfg.uid ? 1 : 0)) === 2 && !+u.show_rate ? ' two' : '');
+    setBalance(cfg.balance);
+    $('customCard').hidden = !+u.show_custom;
+    $('foot').textContent = u.footer || ''; $('foot').hidden = !(+u.show_footer && u.footer);
+    buildTiers();
+    refresh();
+  }
+  function setBalance(b) {
+    if (b === null || b === undefined || b === '') { $('balVal').textContent = '0.00'; return; }
+    var v = parseFloat(b); $('balVal').textContent = isNaN(v) ? String(b) : v.toFixed(2);
+  }
+  function buildTiers() {
+    var box = $('tiers'); box.innerHTML = '';
+    var show = +cfg.ui.show_packages && cfg.amounts.length;
+    $('tiersWrap').hidden = !show;
+    if (!show) return;
+    cfg.amounts.forEach(function (n) {
+      var d = document.createElement('div'); d.className = 'tier' + (picked === n ? ' sel' : '');
+      var a = document.createElement('div'); a.className = 'n'; a.textContent = n;
+      var p = document.createElement('div'); p.className = 'p'; p.textContent = fmtPts(ptsForStars(n)) + ' نقطة';
+      d.appendChild(a); d.appendChild(p);
+      d.addEventListener('click', function () {
+        picked = n; mode = 'stars';
+        $('amt').value = String(n); syncSeg(); buildTiers(); refresh();
+        try { tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged(); } catch (e) {}
+      });
+      box.appendChild(d);
+    });
+  }
+  function syncSeg() {
+    document.querySelectorAll('#seg button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-mode') === mode); });
+    $('amt').placeholder = mode === 'points' ? '1.0' : '50';
+    $('amt').setAttribute('inputmode', mode === 'points' ? 'decimal' : 'numeric');
+  }
+
+  // ---------- حساب الطلب الحالي ----------
+  function current() {
+    var raw = digits($('amt').value), lim = clampInfo();
+    if (!raw) return { empty: true };
+    if (!/^\d+(\.\d+)?$/.test(raw)) return { err: 'أدخل رقماً صحيحاً فقط' };
+    var v = parseFloat(raw), stars;
+    if (mode === 'stars') {
+      if (!/^\d+$/.test(raw)) return { err: 'عدد النجوم لازم يكون رقماً صحيحاً' };
+      stars = v;
+    } else {
+      if (v <= 0) return { err: 'أدخل قيمة أكبر من صفر' };
+      stars = starsForPoints(v);
+    }
+    if (stars < lim.lo) return { err: 'الحد الأدنى ' + lim.lo + ' نجمة' };
+    if (stars > lim.hi) return { err: 'الحد الأقصى ' + lim.hi + ' نجمة' };
+    return { stars: stars, points: ptsForStars(stars), requested: mode === 'points' ? v : null };
+  }
+  function refresh() {
+    var r = current(), h = $('hint'), inp = $('amt'), go = $('go');
+    inp.classList.toggle('bad', !!r.err);
+    h.className = 'hint';
+    if (r.empty) {
+      h.textContent = mode === 'points' ? 'اكتب المبلغ بالنقاط، مثال: 1.0 أو 0.15' : 'اكتب عدد النجوم';
+      go.disabled = true; go.textContent = cfg.ui.button_text || 'تأكيد الشحن';
+      if (!+cfg.ui.show_custom) { h.textContent = ''; }
+      return;
+    }
+    if (r.err) { h.className = 'hint err'; h.textContent = r.err; go.disabled = true; go.textContent = cfg.ui.button_text || 'تأكيد الشحن'; return; }
+    h.innerHTML = '';
+    var b1 = document.createElement('b'); b1.textContent = r.stars + ' نجمة ⭐';
+    var b2 = document.createElement('b'); b2.textContent = fmtPts(r.points) + ' نقطة';
+    h.appendChild(document.createTextNode('ستدفع ')); h.appendChild(b1);
+    h.appendChild(document.createTextNode(' وتحصل على ')); h.appendChild(b2);
+    go.disabled = busy; go.textContent = (cfg.ui.button_text || 'تأكيد الشحن') + ' · ' + r.stars + ' ⭐';
+  }
+
+  // ---------- التواصل مع البوت ----------
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  // يعيد المحاولة تلقائياً عند أخطاء الشبكة/المهلة/ردّ النفق غير الصالح (لا يعيد عند ردّ JSON من البوت)
+  function api(path, body, opts) {
+    opts = opts || {};
+    var tries = opts.tries || 3, timeout = opts.timeout || 12000, attempt = 0;
+    var payload = JSON.stringify(Object.assign({ initData: initData }, body || {}));
+    function once() {
+      attempt++;
+      var ctl = new AbortController(), t = setTimeout(function () { ctl.abort(); }, timeout);
+      return fetch(cfg.api + path, {
+        method: 'POST', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+        body: payload, signal: ctl.signal
+      }).then(function (r) {
+        return r.text().then(function (txt) {
+          clearTimeout(t);
+          try { return JSON.parse(txt); }
+          catch (e) { var er = new Error('badjson'); er.kind = 'badjson'; throw er; }
+        });
+      }).catch(function (e) {
+        clearTimeout(t);
+        if (!e.kind) e.kind = (e && e.name === 'AbortError') ? 'timeout' : 'network';
+        if (attempt < tries) return sleep(600 * attempt).then(once);
+        throw e;
+      });
+    }
+    return once();
+  }
+  var lastErr = '';
+  function errText(e) {
+    var k = e && e.kind;
+    return 'السيرفر لا يستجيب (' + (k === 'timeout' ? 'انتهت المهلة' : k === 'badjson' ? 'النفق غير متصل' : 'شبكة/حظر') + ')';
+  }
+  function loadMe() {
+    if (!cfg.api) { lastErr = 'لا يوجد رابط سيرفر'; return Promise.resolve(false); }
+    if (!initData) { lastErr = 'لم تُفتح من زر البوت'; return Promise.resolve(false); }
+    return api('/api/stars/me', {}, { tries: 3, timeout: 10000 }).then(function (j) {
+      if (!j || !j.ok) { lastErr = (j && j.error) || 'رد غير صالح'; return false; }
+      cfg.balance = j.balance; cfg.uid = String(j.uid || cfg.uid);
+      if (j.rate) cfg.rate = +j.rate;
+      if (j.amounts) cfg.amounts = j.amounts;
+      if (j.ui) Object.assign(cfg.ui, j.ui);
+      cfg.live = true; lastErr = ''; return true;
+    }).catch(function (e) { cfg.live = false; lastErr = errText(e); return false; });
+  }
+
+  // ---------- التأكيد والدفع ----------
+  function openSheet(r) {
+    $('cStars').textContent = r.stars; $('cPts').textContent = fmtPts(r.points);
+    $('cNote').textContent = 'ستظهر نافذة الدفع الرسمية من تيليجرام داخل هذه الصفحة لإتمام العملية.';
+    $('veil').hidden = false; $('cOk').disabled = false;
+    $('cOk').dataset.stars = r.stars;
+  }
+  function closeSheet() { $('veil').hidden = true; }
+
+  function pay(stars) {
+    if (busy) return; busy = true; $('cOk').disabled = true; $('cOk').textContent = 'جاري التجهيز...';
+    var resetBtn = function () { busy = false; $('cOk').textContent = 'تأكيد ودفع'; $('cOk').disabled = false; };
+    var fail = function (msg) { resetBtn(); toast(msg); hap('error'); };
+    if (!tg || !tg.openInvoice) { fail('حدّث تيليجرام لأحدث إصدار لتظهر نافذة الدفع'); return; }
+    if (!cfg.api) { fail('خدمة الدفع غير جاهزة، أغلق الصفحة وافتحها من البوت بعد ثوانٍ'); return; }
+    (cfg.live ? Promise.resolve(true) : loadMe()).then(function (ok) {
+      if (!ok) { fail('تعذر الاتصال بخدمة الدفع: ' + lastErr); return; }
+      return api('/api/stars/invoice', { stars: stars }, { tries: 3, timeout: 15000 }).then(function (j) {
+        if (!j || !j.ok || !j.link) { fail((j && j.error) || 'تعذر إنشاء عملية الدفع'); return; }
+        // تفتح نافذة "تأكيد الشراء" الرسمية مباشرة فوق الصفحة، بدون إرسال أي رسالة في البوت
+        try {
+          tg.openInvoice(j.link, function (status) {
+            resetBtn();
+            if (status === 'paid') { closeSheet(); success(); }
+            else if (status === 'failed') { toast('فشلت عملية الدفع، حاول مرة أخرى'); hap('error'); }
+            /* cancelled: المستخدم أغلق النافذة */
+          });
+        } catch (e) { fail('تعذر فتح نافذة الدفع، حاول مرة أخرى'); }
+      }, function (e) {
+        cfg.live = false;
+        fail('تعذر الاتصال بخدمة الدفع: ' + errText(e));
+      });
+    });
+  }
+  function success() {
+    hap('success');
+    $('main').hidden = true; $('done').hidden = false;
+    var before = parseFloat(cfg.balance) || 0, tries = 0;
+    $('doneBal').hidden = !(+cfg.ui.show_balance && cfg.live);
+    $('doneBalVal').textContent = before.toFixed(2);
+    if (!cfg.live) return;
+    (function poll() {
+      loadMe().then(function () {
+        var now = parseFloat(cfg.balance) || 0;
+        $('doneBalVal').textContent = now.toFixed(2); setBalance(cfg.balance);
+        if (now > before + 1e-9 || ++tries >= 10) return;
+        setTimeout(poll, 1500);
+      });
+    })();
+  }
+
+  // ---------- أحداث ----------
+  $('amt').addEventListener('input', function () { picked = null; buildTiers(); refresh(); });
+  document.querySelectorAll('#seg button').forEach(function (b) {
+    b.addEventListener('click', function () { mode = b.getAttribute('data-mode'); picked = null; $('amt').value = ''; syncSeg(); buildTiers(); refresh(); });
+  });
+  $('go').addEventListener('click', function () {
+    var r = current(); if (!r.stars) return; openSheet(r);
+  });
+  $('cNo').addEventListener('click', closeSheet);
+  $('veil').addEventListener('click', function (e) { if (e.target === $('veil')) closeSheet(); });
+  $('cOk').addEventListener('click', function () { var r = current(); if (r.stars) pay(r.stars); });
+  $('again').addEventListener('click', function () { $('done').hidden = true; $('main').hidden = false; $('amt').value = ''; picked = null; buildTiers(); refresh(); });
+  $('closeBtn').addEventListener('click', function () { if (tg && tg.close) tg.close(); });
+
+  applyTheme(); render(); syncSeg();
+  (function boot(n) {
+    loadMe().then(function (ok) {
+      if (ok) { applyTheme(); render(); return; }
+      if (cfg.api && initData && n < 6) setTimeout(function () { boot(n + 1); }, Math.min(2000 + n * 1500, 8000));
+    });
+  })(0);
+  // لو رجع المستخدم للصفحة وكان الاتصال منقطعاً، نعيد الاتصال تلقائياً
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden || busy || cfg.live || !cfg.api || !initData) return;
+    loadMe().then(function (ok) { if (ok) { applyTheme(); render(); } });
+  });
+})();
+</script>
+</body>
+</html>

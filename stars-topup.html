@@ -12,7 +12,7 @@
     --line: #262c39;
     --text: #f4f6fb;
     --muted: #8b93a7;
-    --accent: #e5383b;
+    --accent: #3b82f6;
     --accent-ink: #ffffff;
     --ok: #2ecc71;
     --err: #ff6b6b;
@@ -61,8 +61,18 @@
   h1 { margin: 0 0 6px; font-size: 24px; font-weight: 800; }
   .sub { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.6; }
 
-  .info { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 18px; }
-  .info.two { grid-template-columns: 1fr 1fr; }
+  /* الرصيد والأيدي مدمجان في بطاقة واحدة */
+  .info { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 2px 16px; margin-bottom: 18px; }
+  .info .stat {
+    background: none; border: 0; border-radius: 0; padding: 13px 0; text-align: start;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .info .stat + .stat:not([hidden]) { border-top: 1px dashed var(--line); }
+  .info .stat .k { margin: 0; flex: none; font-size: 13px; }
+  .info .stat .v { font-size: 22px; min-width: 0; overflow-wrap: anywhere; }
+  .info .stat.bal .v.long { font-size: 15px; }
+  .info .stat.uid .v { font-size: 22px; }
+  .info .stat.rate .v { font-size: 18px; }
   .stat {
     background: var(--card); border: 1px solid var(--line); border-radius: 18px;
     padding: 14px 16px; text-align: center; min-width: 0;
@@ -82,6 +92,7 @@
   }
   .seg button.on { background: var(--accent); color: var(--accent-ink); }
   .field { position: relative; }
+  .flabel { display: block; text-align: center; font-size: 14px; font-weight: 700; color: var(--text); margin: 0 0 10px; }
   .field input {
     width: 100%; background: var(--bg2); border: 1.5px solid var(--line); color: var(--text);
     border-radius: 14px; padding: 15px 16px; font: inherit; font-size: 22px; font-weight: 800;
@@ -93,17 +104,32 @@
   .hint b { color: var(--text); }
   .hint.err { color: var(--err); }
 
-  .section-title { font-size: 12.5px; color: var(--muted); font-weight: 700; margin: 4px 4px 10px; }
-  .tiers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-  .tier {
-    background: var(--card); border: 1.5px solid var(--line); border-radius: 16px; padding: 14px 8px;
-    text-align: center; cursor: pointer; user-select: none; transition: transform .1s, border-color .15s;
+  /* العروض السريعة */
+  .offers-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; border: 0; cursor: pointer;
+    background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 16px; font-weight: 800;
+    border-radius: 16px; padding: 14px 0;
   }
-  .tier:active { transform: scale(.97); }
-  .tier.sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
-  .tier .n { font-size: 20px; font-weight: 800; }
-  .tier .n::after { content: " ⭐"; font-size: 15px; }
-  .tier .p { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .offers-btn .chev { transition: transform .2s; display: inline-block; }
+  .offers-btn.open .chev { transform: rotate(180deg); }
+  .offers {
+    position: relative; max-height: 52vh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 10px; margin: 10px 0 0;
+  }
+  .ogrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tier {
+    border: 0; font: inherit; background: var(--accent); color: var(--accent-ink); border-radius: 12px; padding: 10px 4px;
+    text-align: center; cursor: pointer; user-select: none; transition: transform .1s, opacity .15s; min-width: 0;
+  }
+  .tier:active { transform: scale(.96); }
+  .tier.sel { box-shadow: 0 0 0 3px var(--text); }
+  .tier.hit { box-shadow: 0 0 0 3px var(--text), 0 0 18px var(--accent); animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { transform: scale(1.06); } }
+  .tier.load { opacity: .55; pointer-events: none; }
+  .tier .n { font-size: 17px; font-weight: 800; }
+  .tier .n::after { content: " ⭐"; font-size: 13px; }
+  .tier .p { font-size: 11px; opacity: .75; margin-top: 2px; direction: rtl; }
+  #tiersWrap { margin-bottom: 16px; }
 
   .cta {
     display: block; width: 100%; border: 0; border-radius: 16px; padding: 16px 0; cursor: pointer;
@@ -161,16 +187,16 @@
 
     <div class="card" id="customCard" hidden>
       <div class="seg" id="seg">
-        <button type="button" data-mode="points" class="on">بالنقاط</button>
-        <button type="button" data-mode="stars">بالنجوم</button>
+        <button type="button" data-mode="points">بالنقاط</button>
+        <button type="button" data-mode="stars" class="on">بالنجوم</button>
       </div>
-      <div class="field"><input id="amt" type="text" inputmode="decimal" autocomplete="off" placeholder="1.0" aria-label="المبلغ"></div>
+      <div class="field"><label class="flabel" id="flabel" for="amt"></label><input id="amt" type="text" inputmode="decimal" autocomplete="off" placeholder="50" aria-label="اكتب النجوم التي تريد شحنها!"></div>
       <div class="hint" id="hint"></div>
     </div>
 
     <div id="tiersWrap" hidden>
-      <div class="section-title">باقات سريعة</div>
-      <div class="tiers" id="tiers"></div>
+      <button type="button" class="offers-btn" id="offersBtn" aria-expanded="false" aria-controls="offersPanel"><span>⚡ العروض السريعة</span><span class="chev">▾</span></button>
+      <div class="offers" id="offersPanel" hidden><div class="ogrid" id="tiers"></div></div>
     </div>
 
     <button class="cta" id="go" disabled></button>
@@ -217,7 +243,7 @@
     show_balance: 1, show_id: 1, show_rate: 0, show_packages: 1, show_custom: 1, show_badge: 1, show_footer: 1,
     title: 'شحن النجوم', subtitle: 'اختر عدد النجوم لشحن رصيدك مباشرة', badge: '⚡ شحن فوري عبر تيليجرام',
     button_text: 'تأكيد الشحن', footer: 'الدفع آمن عبر Telegram Stars الرسمية.',
-    accent: '#e5383b', theme: 'dark', min_stars: 1, max_stars: 2500
+    accent: '#3b82f6', theme: 'dark', min_stars: 1, max_stars: 2500
   };
   var cfg = {
     ui: Object.assign({}, DEFAULT_UI),
@@ -233,7 +259,7 @@
   var invMap = {};
   try { invMap = JSON.parse(Q.get('inv') || '{}') || {}; } catch (e) { invMap = {}; }
 
-  var mode = 'points';   // points | stars
+  var mode = 'stars';    // points | stars
   var picked = null;     // باقة مختارة
   var busy = false;
 
@@ -279,7 +305,7 @@
     $('rateBox').hidden = !+u.show_rate;
     $('uidVal').textContent = cfg.uid;
     $('rateVal').textContent = cfg.rate.toFixed(4) + '$';
-    $('info').className = 'info' + (((+u.show_balance ? 1 : 0) + (+u.show_id && cfg.uid ? 1 : 0)) === 2 && !+u.show_rate ? ' two' : '');
+    $('info').hidden = !(+u.show_balance || (+u.show_id && cfg.uid) || +u.show_rate);
     setBalance(cfg.balance);
     $('customCard').hidden = !+u.show_custom;
     $('foot').textContent = u.footer || ''; $('foot').hidden = !(+u.show_footer && u.footer);
@@ -287,29 +313,77 @@
     refresh();
   }
   function setBalance(b) {
-    if (b === null || b === undefined || b === '') { $('balVal').textContent = '0.00'; return; }
-    var v = parseFloat(b); $('balVal').textContent = isNaN(v) ? String(b) : v.toFixed(2);
+    var txt;
+    if (b === null || b === undefined || b === '') txt = '0.00';
+    else { var v = parseFloat(b); txt = isNaN(v) ? String(b) : v.toFixed(2); }
+    $('balVal').textContent = txt;
+    $('balVal').parentNode.classList.toggle('long', txt.length > 11);   // أرقام طويلة: نصغّر الخط كي لا تنكسر البطاقة
+  }
+  // ---------- العروض السريعة: أزرار من 1 إلى الحد الأقصى، تُبنى على دفعات كي لا تثقل الصفحة ----------
+  var offersOpen = false, filling = false, built = 0, gridKey = '', selEl = null, hitEl = null, payingBtn = null;
+  var CHUNK = 300;
+  function offerBtn(n) {
+    var d = document.createElement('button'); d.type = 'button'; d.className = 'tier'; d.setAttribute('data-n', n);
+    var a = document.createElement('div'); a.className = 'n'; a.textContent = n;
+    var p = document.createElement('div'); p.className = 'p'; p.textContent = fmtPts(ptsForStars(n)) + ' نقطة';
+    d.appendChild(a); d.appendChild(p);
+    return d;
+  }
+  function resetGridIfNeeded() {
+    var lim = clampInfo(), key = lim.lo + '|' + lim.hi + '|' + cfg.rate;
+    if (key !== gridKey) { gridKey = key; $('tiers').innerHTML = ''; built = 0; selEl = null; hitEl = null; }
+    return lim;
+  }
+  // يبني الأزرار حتى الرقم n (متزامن) ثم يرجع
+  function buildTo(n) {
+    var lim = resetGridIfNeeded(), next = lim.lo + built, end = Math.min(lim.hi, n);
+    if (next > end) return;
+    var frag = document.createDocumentFragment();
+    for (var i = next; i <= end; i++) frag.appendChild(offerBtn(i));
+    $('tiers').appendChild(frag); built += end - next + 1;
+  }
+  function fillGrid() {
+    if (filling) return; filling = true;
+    (function step() {
+      var lim = resetGridIfNeeded(), next = lim.lo + built;
+      if (!offersOpen || next > lim.hi) { filling = false; return; }
+      buildTo(Math.min(lim.hi, next + CHUNK - 1));
+      markSel();
+      if (lim.lo + built <= lim.hi) requestAnimationFrame(step); else filling = false;
+    })();
+  }
+  function markSel() {
+    if (selEl) { selEl.classList.remove('sel'); selEl = null; }
+    if (picked == null) return;
+    var el = $('tiers').querySelector('[data-n="' + picked + '"]');
+    if (el) { el.classList.add('sel'); selEl = el; }
+  }
+  // خانة الكتابة = بحث: تفتح العروض السريعة وتنقلك للزر المطابق (اضغط عليه فتظهر الفاتورة)
+  function hitOffer() {
+    if (hitEl) { hitEl.classList.remove('hit'); hitEl = null; }
+    if (!+cfg.ui.show_packages) return;
+    var r = current(); if (!r.stars) return;
+    if (!offersOpen) {
+      offersOpen = true; $('offersPanel').hidden = false;
+      $('offersBtn').classList.add('open'); $('offersBtn').setAttribute('aria-expanded', 'true');
+    }
+    buildTo(r.stars); fillGrid();
+    var el = $('tiers').querySelector('[data-n="' + r.stars + '"]'); if (!el) return;
+    el.classList.add('hit'); hitEl = el;
+    var box = $('offersPanel');
+    try { $('tiersWrap').scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (x) {}
+    box.scrollTop = Math.max(0, el.offsetTop - box.clientHeight / 2 + el.offsetHeight / 2);
   }
   function buildTiers() {
-    var box = $('tiers'); box.innerHTML = '';
-    var show = +cfg.ui.show_packages && cfg.amounts.length;
-    $('tiersWrap').hidden = !show;
-    if (!show) return;
-    cfg.amounts.forEach(function (n) {
-      var d = document.createElement('div'); d.className = 'tier' + (picked === n ? ' sel' : '');
-      var a = document.createElement('div'); a.className = 'n'; a.textContent = n;
-      var p = document.createElement('div'); p.className = 'p'; p.textContent = fmtPts(ptsForStars(n)) + ' نقطة';
-      d.appendChild(a); d.appendChild(p);
-      d.addEventListener('click', function () {
-        picked = n; mode = 'stars';
-        $('amt').value = String(n); syncSeg(); buildTiers(); refresh();
-        try { tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged(); } catch (e) {}
-      });
-      box.appendChild(d);
-    });
+    $('tiersWrap').hidden = !+cfg.ui.show_packages;
+    if (!+cfg.ui.show_packages) { offersOpen = false; $('offersPanel').hidden = true; $('offersBtn').classList.remove('open'); return; }
+    if (offersOpen) fillGrid();
+    markSel();
   }
   function syncSeg() {
     document.querySelectorAll('#seg button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-mode') === mode); });
+    var lbl = mode === 'points' ? 'اكتب النقاط التي تريد شحنها!' : 'اكتب النجوم التي تريد شحنها!';
+    $('flabel').textContent = lbl; $('amt').setAttribute('aria-label', lbl);
     $('amt').placeholder = mode === 'points' ? '1.0' : '50';
     $('amt').setAttribute('inputmode', mode === 'points' ? 'decimal' : 'numeric');
   }
@@ -448,7 +522,7 @@
   function pay(stars) {
     if (busy) return; busy = true; $('cOk').disabled = true; $('cOk').textContent = 'جاري التجهيز...';
     var note = $('cNote'); note.style.color = '';
-    var resetBtn = function () { busy = false; $('cOk').textContent = 'تأكيد ودفع'; $('cOk').disabled = false; };
+    var resetBtn = function () { if (payingBtn) { payingBtn.classList.remove('load'); payingBtn = null; } busy = false; $('cOk').textContent = 'تأكيد ودفع'; $('cOk').disabled = false; };
     // خطأ واضح داخل الصفحة نفسها (لا نرسل أي رسالة من البوت ولا نغلق الصفحة)
     var fail = function (msg) { resetBtn(); note.textContent = msg; note.style.color = 'var(--err)'; toast(msg); hap('error'); };
     if (!tg || !tg.openInvoice) { fail('حدّث تيليجرام لأحدث إصدار لتظهر نافذة الدفع'); return; }
@@ -473,7 +547,7 @@
       if (!u) { setConn('⚠️ السيرفر غير متاح'); fail('السيرفر غير متاح حالياً، حاول بعد لحظات'); return; }
       return api('/api/stars/invoice', { stars: stars }, { tries: 2, timeout: 10000 }).then(function (j) {
         setConn('');
-        if (j && j.ok && j.link) { cfg.live = true; openLink(j.link); return; }
+        if (j && j.ok && j.link) { cfg.live = true; invMap[String(stars)] = j.link; openLink(j.link); return; }
         fail((j && j.error) || 'تعذر تجهيز الفاتورة، حاول مرة أخرى');
       }, function (e) {
         cfg.live = false; cfg.api = ''; setConn(''); fail(errText(e) + ' — حاول مرة أخرى');
@@ -498,7 +572,22 @@
   }
 
   // ---------- أحداث ----------
-  $('amt').addEventListener('input', function () { picked = null; buildTiers(); refresh(); });
+  $('amt').addEventListener('input', function () { picked = null; buildTiers(); refresh(); hitOffer(); });
+  $('offersBtn').addEventListener('click', function () {
+    offersOpen = !offersOpen; $('offersPanel').hidden = !offersOpen;
+    this.classList.toggle('open', offersOpen); this.setAttribute('aria-expanded', offersOpen ? 'true' : 'false');
+    if (offersOpen) { fillGrid(); markSel(); hitOffer(); }
+  });
+  // ضغطة على أي زر (1 … 2500) تفتح مباشرة نافذة «تأكيد الشراء» الرسمية من تيليجرام
+  $('tiers').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('.tier') : null; if (!b || busy) return;
+    var n = parseInt(b.getAttribute('data-n'), 10), lim = clampInfo();
+    if (!(n >= lim.lo && n <= lim.hi)) return;
+    picked = n; mode = 'stars'; $('amt').value = String(n); syncSeg(); markSel(); refresh();
+    try { tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged(); } catch (x) {}
+    if (!initData) { toast('افتح الصفحة من زر البوت لتظهر نافذة الدفع'); return; }
+    b.classList.add('load'); payingBtn = b; pay(n);
+  });
   document.querySelectorAll('#seg button').forEach(function (b) {
     b.addEventListener('click', function () { mode = b.getAttribute('data-mode'); picked = null; $('amt').value = ''; syncSeg(); buildTiers(); refresh(); });
   });

@@ -397,15 +397,17 @@
   function openSheet(r) {
     $('cStars').textContent = r.stars; $('cPts').textContent = fmtPts(r.points);
     $('cNote').textContent = 'ستظهر نافذة الدفع الرسمية من تيليجرام داخل هذه الصفحة لإتمام العملية.';
-    $('veil').hidden = false; $('cOk').disabled = false;
+    $('cNote').style.color = ''; $('veil').hidden = false; $('cOk').disabled = false; $('cOk').textContent = 'تأكيد ودفع';
     $('cOk').dataset.stars = r.stars;
   }
   function closeSheet() { $('veil').hidden = true; }
 
   function pay(stars) {
     if (busy) return; busy = true; $('cOk').disabled = true; $('cOk').textContent = 'جاري التجهيز...';
+    var note = $('cNote'); note.style.color = '';
     var resetBtn = function () { busy = false; $('cOk').textContent = 'تأكيد ودفع'; $('cOk').disabled = false; };
-    var fail = function (msg) { resetBtn(); toast(msg); hap('error'); };
+    // خطأ واضح داخل الصفحة نفسها (لا نرسل أي رسالة من البوت ولا نغلق الصفحة)
+    var fail = function (msg) { resetBtn(); note.textContent = msg; note.style.color = 'var(--err)'; toast(msg); hap('error'); };
     if (!tg || !tg.openInvoice) { fail('حدّث تيليجرام لأحدث إصدار لتظهر نافذة الدفع'); return; }
     var openLink = function (link) {
       // تفتح نافذة "تأكيد الشراء" الرسمية مباشرة فوق الصفحة، بدون إرسال أي رسالة في البوت
@@ -418,25 +420,17 @@
         });
       } catch (e) { fail('تعذر فتح نافذة الدفع، حاول مرة أخرى'); }
     };
-    // احتياطي: لو السيرفر غير متصل، نفتح البوت ويرسل فاتورة «تأكيد الشراء» مباشرة
-    var viaBot = function () {
-      resetBtn(); closeSheet();
-      var l = 'https://t.me/' + cfg.bot + '?start=stars_' + stars;
-      try { tg.openTelegramLink(l); } catch (e) { try { tg.openLink(l); } catch (x) { toast('تعذر فتح البوت'); } }
-    };
+    // باقة جاهزة: الرابط موجود مسبقاً فتظهر الفاتورة فوراً بدون سيرفر
     var pre = invMap[String(stars)];
     if (pre) { openLink(/^https?:/.test(pre) ? pre : 'https://t.me/' + pre); return; }
+    // أي كمية أخرى (مخصصة): نطلب فاتورة جديدة من سيرفر البوت ثم نفتحها داخل الصفحة
     if (!initData) { fail('افتح الصفحة من زر البوت لتظهر نافذة الدفع'); return; }
-    if (!cfg.api) { viaBot(); return; }
-    (cfg.live ? Promise.resolve(true) : loadMe()).then(function (ok) {
-      if (!ok) { viaBot(); return; }
-      return api('/api/stars/invoice', { stars: stars }, { tries: 2, timeout: 15000 }).then(function (j) {
-        if (j && !j.ok && j.error && !j.link) { fail(j.error); return; }
-        if (!j || !j.ok || !j.link) { viaBot(); return; }
-        openLink(j.link);
-      }, function (e) {
-        cfg.live = false; viaBot();
-      });
+    if (!cfg.api) { fail('سيرفر الدفع غير جاهز حالياً. أغلق الصفحة وافتحها من البوت بعد لحظات.'); return; }
+    api('/api/stars/invoice', { stars: stars }, { tries: 2, timeout: 10000 }).then(function (j) {
+      if (j && j.ok && j.link) { cfg.live = true; openLink(j.link); return; }
+      fail((j && j.error) || 'تعذر تجهيز الفاتورة، حاول مرة أخرى');
+    }, function (e) {
+      cfg.live = false; fail(errText(e) + ' — حاول مرة أخرى');
     });
   }
   function success() {

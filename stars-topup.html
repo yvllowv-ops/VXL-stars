@@ -418,17 +418,24 @@
         });
       } catch (e) { fail('تعذر فتح نافذة الدفع، حاول مرة أخرى'); }
     };
+    // احتياطي: لو السيرفر غير متصل، نفتح البوت ويرسل فاتورة «تأكيد الشراء» مباشرة
+    var viaBot = function () {
+      resetBtn(); closeSheet();
+      var l = 'https://t.me/' + cfg.bot + '?start=stars_' + stars;
+      try { tg.openTelegramLink(l); } catch (e) { try { tg.openLink(l); } catch (x) { toast('تعذر فتح البوت'); } }
+    };
     var pre = invMap[String(stars)];
     if (pre) { openLink(/^https?:/.test(pre) ? pre : 'https://t.me/' + pre); return; }
-    if (!cfg.api) { fail('خدمة الدفع غير جاهزة، أغلق الصفحة وافتحها من البوت بعد ثوانٍ'); return; }
+    if (!initData) { fail('افتح الصفحة من زر البوت لتظهر نافذة الدفع'); return; }
+    if (!cfg.api) { viaBot(); return; }
     (cfg.live ? Promise.resolve(true) : loadMe()).then(function (ok) {
-      if (!ok) { fail('تعذر الاتصال بخدمة الدفع: ' + lastErr); return; }
-      return api('/api/stars/invoice', { stars: stars }, { tries: 3, timeout: 15000 }).then(function (j) {
-        if (!j || !j.ok || !j.link) { fail((j && j.error) || 'تعذر إنشاء عملية الدفع'); return; }
+      if (!ok) { viaBot(); return; }
+      return api('/api/stars/invoice', { stars: stars }, { tries: 2, timeout: 15000 }).then(function (j) {
+        if (j && !j.ok && j.error && !j.link) { fail(j.error); return; }
+        if (!j || !j.ok || !j.link) { viaBot(); return; }
         openLink(j.link);
       }, function (e) {
-        cfg.live = false;
-        fail('تعذر الاتصال بخدمة الدفع: ' + errText(e));
+        cfg.live = false; viaBot();
       });
     });
   }
